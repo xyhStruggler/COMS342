@@ -1,0 +1,66 @@
+#lang racket
+(require "program.rkt")
+(provide (all-defined-out))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;synchk;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (synchk program)
+  (Expr? program))
+
+(define (Expr? program)
+  (or (number? program) (symbol? program) (OpExpr? program)))
+
+(define (OpExpr? expr)
+  (or (ArithExpr? expr) (CondExpr? expr) (VarExpr? expr)))
+
+(define (ArithExpr? OpExpr)
+  (and (equal? (length OpExpr) 3) (Op? (car OpExpr)) (Expr? (second OpExpr)) (Expr? (third OpExpr))))
+
+(define (Op? OpExpr)
+  (or (equal? OpExpr '+) (equal? OpExpr '-) (equal? OpExpr '*) (equal? OpExpr '/)))
+  
+(define (CondExpr? OpExpr)
+  (and (equal? (length OpExpr) 3) (CCond? (car OpExpr)) (Expr? (second OpExpr)) (Expr? (third OpExpr))))
+  
+(define (CCond? condExpr)
+  (if (not (list? condExpr))
+      false
+      (if (BCond? condExpr)
+          true
+          (if (equal? (length condExpr) 2)
+              (and (equal? (first condExpr) 'not) (CCond? (second condExpr)))
+              (if (not (equal? (length condExpr) 3))
+                  false
+                  (or  (and (equal? (first condExpr) 'or) (CCond? (second condExpr)) (CCond? (third condExpr)) ) (and (equal? (first condExpr) 'and) (CCond? (second condExpr)) (CCond? (third condExpr))) ))))))
+  
+
+(define (BCond? CCond)
+   (if (not (equal? (length CCond) 3))
+       false
+       (if (not (or (equal? (first CCond) 'gt) (equal? (first CCond) 'lt) (equal? (first CCond) 'eq) ))
+           false
+           (and (Expr? (second CCond)) (Expr? (third CCond))))))
+
+(define (VarExpr? expr)
+  (or (and (equal? (length expr) 3) (equal? (first expr) 'var) (VarAssign? (second expr)) (Expr? (third expr))) (and (equal? (length expr) 2) (VarAssign? expr)) ))
+
+(define (VarAssign? expr)
+  (VarAssignSeq? expr))
+
+(define (VarAssignSeq? expr)
+  (if (null? expr)
+      true
+      (if (not (list? expr))
+          false
+          (if (not (list? (first expr)))
+              (and (symbol? (first expr)) (Expr? (second expr)))
+              (and (equal? (length (first expr)) 2)(symbol? (first (first expr))) (Expr? (second (first expr))) (VarAssign? (cdr expr)))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;eval;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (eval program environment)
+  (if (or (null? program) (null? environment) )
+      '(Cannot Evaluate)
+      true))
+
+

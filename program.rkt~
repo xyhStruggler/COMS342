@@ -201,7 +201,7 @@
   '((x 3))
 )
 
-;; false
+;; True
 (define varassign2
   '()
 )
