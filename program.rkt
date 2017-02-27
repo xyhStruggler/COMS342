@@ -7,7 +7,7 @@
 
 ;; True
 (define prog2
-  '(var ((x z) (y (+ x 1)))
+  '(var ((x z) (y (+ x 1)) (y 1) )
 	(+ x y)
 ))
 
