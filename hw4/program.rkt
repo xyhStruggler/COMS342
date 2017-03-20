@@ -69,8 +69,8 @@
     (apply (f1 ())
 )))
 
-;; (eval prov2 ’((x 3))) returns 6
-;; (eval prov2 ’((x 4))) returns 24
+;; (eval prov2 '((x 3))) returns 6
+;; (eval prov2 '((x 4))) returns 24
 (define prov2
     '(fun ((f1 (x)) ((gt x 0)
 	(* x (apply (f1 ((- x 1)))))
@@ -84,7 +84,7 @@
 
 ;; VALID
 ;; Returns pi.
-;; Results in 4.14159265
+;; Results in 3.14159265
 (define prog0
     '(fun ((pi ()) 3.14159265) 
 	(apply (pi ())

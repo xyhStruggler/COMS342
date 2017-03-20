@@ -177,18 +177,23 @@
     [ (equal? (car expr) 'fun) (eval (third expr) (cons (second expr) env))]
 
     ;; for ApplyF1
-    [ (and (equal? (car expr) 'apply) (not (null? (second (second expr))))) (eval (findMatch (car (second expr)) env) (RenewEnv (second (second expr)) (FuncParams (car (second expr)) env) (cons (findMatchF (car (second expr)) env) env))  )]
+    [ (and (equal? (car expr) 'apply) (not (null? (second (second expr))))) (eval (findMatch (car (second expr)) env) (RenewEnv (second (second expr)) (FuncParams (car (second expr)) env) (cons (car (findMatchF (car (second expr)) env)) env))  )]
     
     ;; for ApplyF2
     [ (and (equal? (car expr) 'apply) (null? (second (second expr)))) (eval (findMatch (car (second expr)) env) (StaticEnv (car (second expr)) (RenewEnv (second (second expr)) (FuncParams (car (second expr)) env)  env))  )]
 
+    ;;[ (equal? (car expr) 'apply) (ApplyF expr env)]
     ;; ifthenelse function
-    [ else  (ifthenelse (evalcond (car expr) env) 
+    [ else  (if (evalcond (car expr) env) 
                         (eval (cadr expr) env)
-                        (eval (cadr (cdr expr)) env)) ]
+                        (eval (cadr (cdr expr)) (cddr env))) ]
     )
   )
 (trace eval)
+;;(define (FExpr expr env)
+  ;;(eval (third expr) (cons (second expr) env)))
+;;(define (ApplyF expr env)
+  ;;(eval (findMatch (car (second expr)) env) (RenewEnv (second(second expr)) (FuncParams (car (second expr)) env) env)))
 ;;findMatch
 (define (findMatch fname env)
   (if (null? env)
@@ -196,23 +201,23 @@
       (if (and (list? (caar env)) (equal? fname (caaar env)) ) 
           (second (car env))
           (findMatch fname (cdr env)))))
-;;(trace findMatch)
+(trace findMatch)
 
 ;;findMatch
 (define (findMatchF fname env)
   (if (null? env)
       '(Error)
       (if (and (list? (caar env)) (equal? fname (caaar env)) ) 
-           (car env)
+          env
           (findMatchF fname (cdr env)))))
-;;(trace findMatch)
+;;(trace findMatchF)
 
-(define (RenewEnv args FP env)
+(define (RenewEnv args oldEnv env)
   (if (null? args)
       env
-      (cons (list (car FP) (eval (car args) env)) (RenewEnv (cdr args) (cdr FP) env)) 
-      ))
-;;(trace RenewEnv)
+      (cons (list (car oldEnv) (eval (car args) env)) (RenewEnv (cdr args) (cdr oldEnv) env)))
+      )
+(trace RenewEnv)
 
 (define (FuncParams fname env)
   (if (null? env)
@@ -272,7 +277,7 @@
   (if condition
       expr1
       expr2))
-
+(trace ifthenelse)
 ;; input: conditions of the form (gt/lt/eq expr1 expr2), (or/and cond1 cond2), (not cond)
 ;; output: true/false, '(Cannot Evaluate)
 ;; used: myapply
