@@ -157,68 +157,91 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(define (eval program env)
-  (if (not (synchk program))
-      '(Cannot Evaluate)
-      (Expr program env '())))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; eval
 ;; input: program-expression, environment as list of pairs (variable value)
 ;; output: '(Cannot Evaluate) or a number
-(define (Expr expr env function)
+
+(define (eval expr env)
   (cond
     [ (number? expr) expr ]  ;; number
     [ (symbol? expr) (findvalue expr env) ] ;; sigma(x)
 
     ;; implementation of the semantics of variable expression
-    [ (equal? (car expr) 'var) (evalvarassign (cadr expr) (cadr (cdr expr)) env function) ]
+    [ (equal? (car expr) 'var) (evalvarassign (cadr expr) (cadr (cdr expr)) env) ]
  
     ;; same as before with the arithmatic operations: environment is added
-    [ (arithop (car expr)) (evalarith (car expr) (cadr expr) (cadr (cdr expr)) env function) ]
+    [ (arithop (car expr)) (evalarith (car expr) (cadr expr) (cadr (cdr expr)) env) ]
 
     ;; for FExpr
-    [ (equal? (car expr) 'fun) (Expr (third expr) env (append function (second expr)))]
+    [ (equal? (car expr) 'fun) (eval (third expr) (cons (second expr) env))]
 
-    ;; for ApplyF
-    [ (equal? (car expr) 'apply) (findMatch (car (second expr)) (second (second expr)) env function )]
+    ;; for ApplyF1
+    [ (and (equal? (car expr) 'apply) (not (null? (second (second expr))))) (eval (findMatch (car (second expr)) env) (RenewEnv (second (second expr)) (FuncParams (car (second expr)) env) (cons (findMatchF (car (second expr)) env) env))  )]
+    
+    ;; for ApplyF2
+    [ (and (equal? (car expr) 'apply) (null? (second (second expr)))) (eval (findMatch (car (second expr)) env) (StaticEnv (car (second expr)) (RenewEnv (second (second expr)) (FuncParams (car (second expr)) env)  env))  )]
 
     ;; ifthenelse function
-    [ else  (ifthenelse (evalcond (car expr) env function) 
-                        (Expr (cadr expr) env function)
-                        (Expr (cadr (cdr expr)) env function)) ]
+    [ else  (ifthenelse (evalcond (car expr) env) 
+                        (eval (cadr expr) env)
+                        (eval (cadr (cdr expr)) env)) ]
     )
   )
-(trace Expr)
+(trace eval)
 ;;findMatch
-(define (findMatch fname args env function)
-  (if (null? function)
+(define (findMatch fname env)
+  (if (null? env)
       '(Error)
-      (if (and (equal? fname (car (first function))) (equal? (length args) (length (second (car function))) ))
-          (Expr (cadr function) (ArgToEnv (second (car function)) args env function) function)
-          (findMatch fname args env (cddr function) ))))
-(trace findMatch)
-;;Arg To Env
-(define (ArgToEnv formalP args env function)
+      (if (and (list? (caar env)) (equal? fname (caaar env)) ) 
+          (second (car env))
+          (findMatch fname (cdr env)))))
+;;(trace findMatch)
+
+;;findMatch
+(define (findMatchF fname env)
+  (if (null? env)
+      '(Error)
+      (if (and (list? (caar env)) (equal? fname (caaar env)) ) 
+           (car env)
+          (findMatchF fname (cdr env)))))
+;;(trace findMatch)
+
+(define (RenewEnv args FP env)
   (if (null? args)
       env
-      (if (equal? (length args) 1)
-          (cons (list (car formalP) (Expr (car args) env function)) env)
-          (ArgToEnv (cdr formalP) (cdr args) (cons (list (car formalP) (Expr (car args) env function)) env) function))))
-(trace ArgToEnv)
-      
+      (cons (list (car FP) (eval (car args) env)) (RenewEnv (cdr args) (cdr FP) env)) 
+      ))
+;;(trace RenewEnv)
+
+(define (FuncParams fname env)
+  (if (null? env)
+      '(Error)
+      (if (and (list? (caar env)) (equal? fname (caaar env)) ) 
+          (second (caar env))
+          (FuncParams fname (cdr env)))))
+
+(define (StaticEnv fname env)
+  (if (null? env)
+      '(Error)
+      (if (and (list? (caar env)) (equal? fname (caaar env)) ) 
+          env
+          (StaticEnv fname (cdr env)))))
+;;(trace StaticEnv)
 ;; input: variable, environment
 ;; output: value to which the variable is mapped to in the environment
 ;;         It can be '(Cannot Evaluate) 
 (define (findvalue x env)
+  
   (if (equal? (car (car env)) x)
       (cadr (car env))
       (findvalue x (cdr env))))
 (trace findvalue)
-
 ;; input: list of (variable expression), expr to evaluate, environment
 ;; output: evaluate expr in some environment
-(define (evalvarassign varassigns expr env function)
+(define (evalvarassign varassigns expr env)
   (if (null? varassigns)  ;; no variable expression pair, 
-      (Expr expr env function)     ;; then just evaluate the expression in the current environment
+      (eval expr env)     ;; then just evaluate the expression in the current environment
       ;; else
       ;; recursive call with the suffix of varassigns, with the same expr
       ;; in the environment constructed by cons-ing (variable evaluation of expression)
@@ -226,9 +249,9 @@
       (evalvarassign (cdr varassigns)
                      expr
                      (cons (list (car (car varassigns))
-                                 (Expr (cadr (car varassigns)) env function))
-                           env) function)))
-(trace evalvarassign)
+                                 (eval (cadr (car varassigns)) env))
+                           env))))
+
 ;; is op arithmatic operation
 (define (arithop op)
   (or (equal? op '+)
@@ -239,8 +262,8 @@
 ;; input: arithoperator, expr-operand1, expr-operand2, env
 ;; output: '(Cannot Evaluate) or some number
 ;; used: myapply 
-(define (evalarith op expr1 expr2 env function)
- (myapply op (Expr expr1 env function) (Expr  expr2 env function)))
+(define (evalarith op expr1 expr2 env)
+ (myapply op (eval expr1 env) (eval  expr2 env)))
 
 ;; input: true/false, '(Cannot Evaluate) expression values
 ;; output: '(Cannot Evaluate) or expression values
@@ -253,27 +276,28 @@
 ;; input: conditions of the form (gt/lt/eq expr1 expr2), (or/and cond1 cond2), (not cond)
 ;; output: true/false, '(Cannot Evaluate)
 ;; used: myapply
-(define (evalcond condexpr env function)
+(define (evalcond condexpr env)
   (cond
     [ (equal? (car condexpr) 'gt)
-      (myapply 'gt (Expr (cadr condexpr) env function) (Expr (cadr (cdr condexpr)) env function)) ]
+      (myapply 'gt (eval (cadr condexpr) env) (eval (cadr (cdr condexpr)) env)) ]
     
     [ (equal? (car condexpr) 'lt)
-      (myapply 'lt (Expr (cadr condexpr) env function) (Expr (cadr (cdr condexpr)) env function)) ]
+      (myapply 'lt (eval (cadr condexpr) env) (eval (cadr (cdr condexpr)) env)) ]
     
     [ (equal? (car condexpr) 'and)
-      (myapply 'and (evalcond (cadr condexpr) env function)
-               (evalcond (cadr (cdr condexpr)) env function)) ]
+      (myapply 'and (evalcond (cadr condexpr) env)
+               (evalcond (cadr (cdr condexpr)) env)) ]
 
     [ (equal? (car condexpr) 'or)
-      (myapply 'or (evalcond (cadr condexpr) env function)
-               (evalcond (cadr (cdr condexpr)) env function)) ]
+      (myapply 'or (evalcond (cadr condexpr) env)
+               (evalcond (cadr (cdr condexpr)) env)) ]
 
     [ (equal? (car condexpr) 'not)
-      (myapply 'not (evalcond (cadr condexpr) env function)
+      (myapply 'not (evalcond (cadr condexpr) env)
                false) ] ;; dummy
     ))
-(trace evalcond)
+
+
 ;; input: some operator, arithmatic or conditional
 ;;        operand-values for the operator
 ;; output: '(Cannot Evaluate) or number or boolean 

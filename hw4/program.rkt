@@ -2,6 +2,16 @@
 (provide (all-defined-out))
 
 
+(define progfunc1
+'(var ((a 0))
+(fun ((f ()) a)
+(fun ((g (a))
+      (apply (f ())))
+     (apply (g (1)))
+     )
+)
+)
+  )
 
 ;(eval progf1 '((y 10))) = 12
 (define progf1
