@@ -1,6 +1,11 @@
 #lang racket
 (provide (all-defined-out))
 
+(define progf5
+  '(var ((x 1))
+        (fun ((f (a)) x)
+             (fun ((g ()) (var ((x (+ x 1))) (apply (f (x)))))
+                  (apply (g ()))))))
 ;;scope1 evaluates to 1 and scope2 evaluates to 2
 (define scope1
   '(var ((a 1))
