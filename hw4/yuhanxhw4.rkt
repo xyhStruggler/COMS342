@@ -20,44 +20,90 @@
 ;;example: (Expr? '(((z 3)) (+ z x))): #f
 (define (Expr? program function)
   (or (number? program) (symbol? program) (OpExpr? program function) (FExpr? program function) (ApplyF? program function)));;return true iff it is any of number, symbol or OpExpr.
-;;
+
+;;function to check if the input is a valid FExpr
+;;input: expr & functions(env)
+;;output: #t or #f
+;;example: (FExpr? (list 'fun '((myfunc (x y)) ((gt x y) 1 0)) 0) '()): #t
+;;example: (FExpr? (list 'fun '((myfunc (a b c)))) '()): #f
 (define (FExpr? expr function)
+  ;;check the length and format                                                    ;; save fname and fomalparams in function                  ;;also do saving here (myfunc (pl) myfunc2 (pl))
   (and (equal? (length expr) 3) (equal? (first expr) 'fun) (FAssign? (second expr) (append function (car (second expr)))) (Expr? (third expr) (append function (car (second expr))) )))
 
+;;function to check if the input is a valid FAssign
+;;input: expr & functions(env)
+;;output: #t or #f
+;;example: (FAssign? '((myfunc (x y)) ((gt x y) 1 0)) '()): #t
+;;example: (FAssign? '((myfunc (a b c))) '()): #f
 (define (FAssign? expr function)
+  ;;check the length and format
   (and (equal? (length expr) 2) (equal? (length (car expr)) 2) (symbol? (caar expr)) (FormalParams? (second (car expr))) (Expr? (second expr) function)))
 
+;;function to check if the input is a valid FormalParams
+;;input: expr
+;;output: #t or #f
+;;example: (FormalParams? '()): #t
+;;example: (FormalParams? '(3)): #f
 (define (FormalParams? expr)
+  ;;check format
   (cond
     [ (not (list? expr)) false]
     [ (null? expr) true]
     [ (FormalParamList? expr) true]
     [ (not (FormalParamList? expr)) false]))
 
+;;function to check if the input is a valid FormalParamList
+;;input: expr & functions(env)
+;;output: #t or #f
+;;example: (FormalParamList? '(x y z)): #t
+;;example: (FormalParamList? '(x y 3)): #f
 (define (FormalParamList? expr)
+  ;;check format
   (if (equal? (length expr) 1)
       (symbol? (car expr))
       (and (symbol? (car expr)) (FormalParamList? (cdr expr)) )))
 
+;;function to check if the input is a valid ApplyF
+;;input: expr & functions(env)
+;;output: #t or #f
+;;example: (ApplyF? (list 'apply (list 'myfunc '())) '(myfunc ())): #t
+;;example: (ApplyF? '(apply ((3) '())) '(myfunc ())): #f
 (define (ApplyF? expr function)
+  ;;check format and check if there is a function with same fname and same length of args(fomalparams) in the function(env)
   (and (equal? (length expr) 2) (equal? (length (second expr)) 2) (equal? (first expr) 'apply) (symbol? (car(second expr))) (Args? (second(second expr)) function) (Match? (second expr) function)))
 
+;;helper function to check if there is a function with same fname and same length of args(fomalparams) in the function(env)
+;;input: expr & functions(env)
+;;output: #t or #f
+;;example: (Match? '(myfunc ()) '(myfunc ())): #t
+;;example: (Match? '(myfunc ()) '()): #f
 (define (Match? expr function)
   (if (null? function)
       false
       (if (and (equal? (first expr) (first function)) (equal? (length (second expr)) (length (second function)) ))
           true
-          (Match? expr (cddr function)))))
+          (Match? expr (cddr function)))));;recursion on function to check if there is a valid function
 
-      
+;;function to check if the input is a valid Args
+;;input: expr & functions(env)
+;;output: #t or #f
+;;example: (Args? '() '(myfunc ())): #t
+;;example: (Args? '((var (x))) '(myfunc ())): #f     
 (define (Args? expr function)
+  ;;check format
   (cond
     [ (not (list? expr)) false]
     [ (null? expr) true]
     [ (ArgList? expr function) true]
     [ (not (ArgList? expr function)) false]))
 
+;;function to check if the input is a valid ArgList
+;;input: expr & functions(env)
+;;output: #t or #f
+;;example: (ArgList? '(3 2 3 4) '(myfunc ())): #t
+;;example: (ArgList? '((var (x))) '(myfunc ())): #f 
 (define (ArgList? expr function)
+  ;;check format
   (if (equal? (length expr) 1)
       (Expr? (car expr) function)
       (and (Expr? (car expr) function) (ArgList? (cdr expr) function) )))
@@ -159,8 +205,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; eval
-;; input: program-expression, environment as list of pairs (variable value)
-;; output: '(Cannot Evaluate) or a number
+;; input: program-expression, environment as list of pairs (variable value and functions)
+;; output: a number
 
 (define (eval expr env)
   (cond
@@ -173,52 +219,63 @@
     ;; same as before with the arithmatic operations: environment is added
     [ (arithop (car expr)) (evalarith (car expr) (cadr expr) (cadr (cdr expr)) env) ]
 
-    ;; for FExpr
+    ;; for FExpr: add function to env
     [ (equal? (car expr) 'fun) (eval (third expr) (cons (second expr) env))]
 
-    ;; for ApplyF1
+    ;; for ApplyF1(without scoping rules)
+    ;; findMatch function & RenewEnv function & FuncParams function & findMatchF function
     [ (and (equal? (car expr) 'apply) (not (null? (second (second expr))))) (eval (findMatch (car (second expr)) env) (RenewEnv (second (second expr)) (FuncParams (car (second expr)) env) (cons (car (findMatchF (car (second expr)) env)) env))  )]
     
-    ;; for ApplyF2
+    ;; for ApplyF2(with scoping rules for variables inside the functions that are not local and are not function parameters)
+    ;; findMatch function & RenewEnv function & FuncParams function
     [ (and (equal? (car expr) 'apply) (null? (second (second expr)))) (eval (findMatch (car (second expr)) env) (StaticEnv (car (second expr)) (RenewEnv (second (second expr)) (FuncParams (car (second expr)) env)  env))  )]
 
-    ;;[ (equal? (car expr) 'apply) (ApplyF expr env)]
-    ;; ifthenelse function
+    ;; for CondExpr
+    ;; evalcond function
     [ else  (if (evalcond (car expr) env) 
                         (eval (cadr expr) env)
-                        (eval (cadr (cdr expr)) (cddr env))) ]
+                        (eval (cadr (cdr expr)) env)) ]
     )
   )
-(trace eval)
-;;(define (FExpr expr env)
-  ;;(eval (third expr) (cons (second expr) env)))
-;;(define (ApplyF expr env)
-  ;;(eval (findMatch (car (second expr)) env) (RenewEnv (second(second expr)) (FuncParams (car (second expr)) env) env)))
-;;findMatch
+
+;;function to find Expr in env
+;;input: fname & env
+;;output: Expr in that function(fname)
+;;example: (findMatch 'myfunc '(((myfunc ()) (+ x 1)) (x 3))) : '(+ x 1)
+;;example: (findMatch 'myfunc '((x 3) ((myfunc ()) (+ x 1)))) : '(+ x 1)
 (define (findMatch fname env)
   (if (null? env)
       '(Error)
       (if (and (list? (caar env)) (equal? fname (caaar env)) ) 
           (second (car env))
-          (findMatch fname (cdr env)))))
-(trace findMatch)
+          (findMatch fname (cdr env)))));;recursion on env to check until there is one or null
 
-;;findMatch
+;;function to find function in env
+;;input: fname & env
+;;output: the whole env after function with fname
+;;example: (findMatchF 'myfunc '(((myfunc ()) (+ x 1)) (x 3))) : '(((myfunc ()) (+ x 1)) (x 3))
+;;example: (findMatchF 'myfunc '((x 3) ((myfunc ()) (+ x 1)))) : '(((myfunc ()) (+ x 1)))
 (define (findMatchF fname env)
   (if (null? env)
       '(Error)
       (if (and (list? (caar env)) (equal? fname (caaar env)) ) 
           env
           (findMatchF fname (cdr env)))))
-;;(trace findMatchF)
 
-(define (RenewEnv args oldEnv env)
+;;function to renew the env
+;;input: args & formalParams & env
+;;output: a new env with (args formalparams) at the beginning
+;;example: (RenewEnv '(1 2) '(a b) '(((myfunc ()) (+ x 1)) (x 3)))  : '((a 1) (b 2) ((myfunc ()) (+ x 1)) (x 3))
+;;example: (RenewEnv '(2) '(b) '(((myfunc ()) (+ x 1)) (x 3)))  : '((b 2) ((myfunc ()) (+ x 1)) (x 3))
+(define (RenewEnv args formalParams env)
   (if (null? args)
       env
-      (cons (list (car oldEnv) (eval (car args) env)) (RenewEnv (cdr args) (cdr oldEnv) env)))
-      )
-(trace RenewEnv)
-
+      (cons (list (car formalParams) (eval (car args) env)) (RenewEnv (cdr args) (cdr formalParams) env))))
+;;function to get FuncParams of a function in env
+;;input: fname & env
+;;output: FuncParams of the function with fname
+;;example: (FuncParams 'myfunc '((a 1) (b 2) ((myfunc ()) (+ x 1)) (x 3))) : '()
+;;example: (FuncParams 'myfunc '((a 1) (b 2) ((myfunc (a b c)) (+ x 1)) (x 3))) : '(a b c)
 (define (FuncParams fname env)
   (if (null? env)
       '(Error)
@@ -226,22 +283,26 @@
           (second (caar env))
           (FuncParams fname (cdr env)))))
 
+;;function to get static scoping env
+;;input: fname & env
+;;output: new env with static scoping rule
+;;example: (StaticEnv 'myfunc '((a 1) (b 2) ((myfunc ()) (+ x 1)) (x 3))) : '(((myfunc ()) (+ x 1)) (x 3))
+;;example: (StaticEnv 'myfunc '((a 1) (b 2) ((myfunc ()) (+ x 1)) (x 3) (x 4))) : '(((myfunc ()) (+ x 1)) (x 3) (x 4))
 (define (StaticEnv fname env)
   (if (null? env)
       '(Error)
       (if (and (list? (caar env)) (equal? fname (caaar env)) ) 
           env
           (StaticEnv fname (cdr env)))))
-;;(trace StaticEnv)
+
 ;; input: variable, environment
 ;; output: value to which the variable is mapped to in the environment
 ;;         It can be '(Cannot Evaluate) 
 (define (findvalue x env)
-  
   (if (equal? (car (car env)) x)
       (cadr (car env))
       (findvalue x (cdr env))))
-(trace findvalue)
+
 ;; input: list of (variable expression), expr to evaluate, environment
 ;; output: evaluate expr in some environment
 (define (evalvarassign varassigns expr env)
@@ -270,14 +331,6 @@
 (define (evalarith op expr1 expr2 env)
  (myapply op (eval expr1 env) (eval  expr2 env)))
 
-;; input: true/false, '(Cannot Evaluate) expression values
-;; output: '(Cannot Evaluate) or expression values
-;;         expression values can be '(Cannot Evaluate)
-(define (ifthenelse condition expr1 expr2)
-  (if condition
-      expr1
-      expr2))
-(trace ifthenelse)
 ;; input: conditions of the form (gt/lt/eq expr1 expr2), (or/and cond1 cond2), (not cond)
 ;; output: true/false, '(Cannot Evaluate)
 ;; used: myapply
@@ -293,6 +346,9 @@
       (myapply 'and (evalcond (cadr condexpr) env)
                (evalcond (cadr (cdr condexpr)) env)) ]
 
+    [ (equal? (car condexpr) 'eq)
+      (myapply 'eq (eval (cadr condexpr) env) (eval (cadr (cdr condexpr)) env)) ]
+    
     [ (equal? (car condexpr) 'or)
       (myapply 'or (evalcond (cadr condexpr) env)
                (evalcond (cadr (cdr condexpr)) env)) ]
