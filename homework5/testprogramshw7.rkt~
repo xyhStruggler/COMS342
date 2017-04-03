@@ -1,0 +1,76 @@
+#lang racket
+(provide (all-defined-out))
+
+;; exception: heap '()
+;; exception: heap '((1 free))
+;; exception: heap '((1 22))
+;; 3 '((1 10) (2 22) (2 1)): heap '((1 free) (2 22) (3 free))
+;; 4
+(define prog1
+  '(ref (ref 10)))
+
+;; '(30 ((1 10) (2 20))): heap '((1 free) (2 free))
+;; 2
+(define prog2
+  '(let (x (ref 10))
+     (let (y (deref x))
+       (let (x (ref 20))
+         (let (z (deref x))
+           (+ y z))))))
+
+
+;; '((exception runtime): heap '((1 free) (2 free))
+(define prog3
+  '(let (x (ref 10))
+     (let (y (ref 20))
+       (let (z (deref (+ x y)))
+         z))))
+
+;; '(1 ((1 20) (2 free))): heap ((1 free) (2 free))
+(define prog4
+  '(let (x (ref 10))
+     (let (y (free x))
+       (ref 20))))
+
+;; '(1 ((1 20))): heap ((1 free))
+(define prog5
+  '(let (x (ref 10))
+     (let (y (free (+ x (- 1 1))))
+       (ref 20))))
+
+;; '(1 ((1 1))): heap ((1 free))
+(define prog6
+  '(wref 1 (ref 20)))
+
+;;'(21 ((1 21))): heap ((1 free))
+(define prog7
+  '(let (x (wref 1 (+ 20 (ref  20))))
+     (deref 1)))
+
+;;'(160 ((1 40) (2 80))): heap ((1 free) (1 free))
+(define prog8
+  '(let (x (ref 10))
+     (let (y (ref 20))
+       (+ (wref x 40) (+ (wref y 80) (deref x))))))
+
+;; exception: 
+(define prog9
+  '(let (x (ref 10))
+     (let (y (ref 20))
+       (+ (wref x 40) (+ (free y) (deref y))))))
+
+;; '(40 ((1 20))): heap '((1 free))
+(define prog10
+  '((gt (ref 10) 0)
+    (+ (wref 1 20)
+       (deref 1))
+    2))
+
+;; '(30 ((1 20))): heap '((1 free))
+(define prog11
+  '((gt (ref 10) 0)
+    (+ (deref 1)
+       (wref 1 20))
+    2))
+
+          
