@@ -12,9 +12,9 @@
 (define (eval expr env heap)
   (if (caneval env)      ;; the environment might end up with a pair (variable '(Cannot Evaluate))
       (cond
-        [ (equal? expr '(exception fma)) (cons '(exception fma) (list heap))]
-        [ (equal? expr '(exception ooma)) (cons '(exception ooma) (list heap))]
-        [ (equal? expr '(exception oom)) (cons '(exception oom) (list heap))]
+        [ (equal? (checkexception expr) '(exception fma)) (cons '(exception fma) (list heap))]
+        [ (equal? (checkexception expr) '(exception ooma)) (cons '(exception ooma) (list heap))]
+        [ (equal? (checkexception expr) '(exception oom)) (cons '(exception oom) (list heap))]
         [ (number? expr) (cons expr (list heap)) ]  ;; number
         [ (symbol? expr) (cons (findvalue expr env) (list heap)) ] ;; sigma(x)
 
@@ -35,7 +35,7 @@
                                                                            env)              ;; current environment
                                                             ;; findfunparams returns parameters of the function
                                                             (cadr (cadr expr)) ;; expressions representing arguments
-                                                            env)
+                                                            env heap)
                                                  ;; paramargs returns the list of variable-value pairs
                                                  
                                                  (findfundef (car (cadr expr)) (length (cadr (cadr expr))) env)) ;; definition of the function
@@ -47,7 +47,7 @@
         [ (arithop (car expr)) (evalarith (car expr) (cadr expr) (cadr (cdr expr)) env heap) ]
 
         ;;DREF
-        [ (equal? (car expr) 'deref) (evaldref (car (eval (second expr) env heap)) (second (eval (second expr) env heap)) (second (eval (second expr) env heap)))]
+        [ (equal? (car expr) 'deref) (cons (evaldref (findval (car (eval (second expr) env heap))) (second (eval (second expr) env heap))) (list (second (eval (second expr) env heap))))]
 
         ;;WREF
         [ (equal? (car expr) 'wref) (evalwref (car (eval (second expr) env heap)) (car (eval (third expr) env heap)) (second (eval (third expr) env heap))) ]
@@ -59,15 +59,17 @@
         [ (equal? (car expr) 'free) (evalfree (car (eval (second expr) env heap)) (second (eval (second expr) env heap)))]
 
         ;; ifthenelse function
-        [ else  (ifthenelse (evalcond (car expr) env) 
+        [ else  (ifthenelse (car (evalcond (car expr) env heap)) 
                             (cadr expr)
-                            (cadr (cdr expr)) env) ]
+                            (cadr (cdr expr)) env (second (evalcond (car expr) env heap))) ]
         )
       '(Cannot Evaluate)
       ))
 
+
+
 ;;evaldref
-(define (evaldref location heap h)
+(define (evaldref location heap)
   (if (not (number? location))
       location
       (if (null? heap)
@@ -75,20 +77,20 @@
           (if (equal? location (car (car heap)))
               (if (equal? 'free (second (car heap)))
                   '(exception fma)
-                  (cons (second (car heap)) (list h)))
-              (evaldref location (cdr heap) h)))))
+                  (second (car heap)))
+              (evaldref location (cdr heap))))))
               
-
+;;(trace evaldref)
 ;;evalwref
 (define (evalwref location value heap)
   (if (not (number? location))
-      location
+      (cons location (list heap))
       (if (not (number? value))
-          value
+          (cons value (list heap))
           (if (equal? '(exception fma) (write location value heap))
-              '(exception fma)
+              (cons '(exception fma) (list heap))
               (if (equal? '(exception ooma) (write location value heap))
-                  '(exception ooma)
+                  (cons '(exception ooma) (list heap))
                   (cons value (list(write location value heap))))))))
 
 ;;writeheap
@@ -109,9 +111,9 @@
 ;;ref
 (define (evalref value heap)
   (if (not (number? value))
-      value
+      (cons value (list heap))
       (if (equal? '(exception oom) (find heap))
-          '(exception oom)
+          (cons '(exception oom) (list heap))
           (cons (find heap) (list (writefree (find heap) value heap))))))
 
 ;;writetofree
@@ -129,14 +131,14 @@
               
 (define (evalfree location heap)
   (if (not (number? location))
-      location
+      (cons location (list heap))
       (if (equal? '(exception fma) (write location 'free heap))
-              '(exception fma)
+              (cons '(exception fma) (list heap))
               (if (equal? '(exception ooma) (write location 'free heap))
-                  '(exception ooma)
+                  (cons '(exception ooma) (list heap))
                   (cons location (list(write location 'free heap)))))))
-  
-
+;;(trace evalfree)
+;;(trace write)
 ;; input: variable, environment
 ;; output: value to which the variable is mapped to in the environment
 ;;         It can be '(Cannot Evaluate) 
@@ -170,8 +172,11 @@
       (evalvarassign (cdr varassigns)
                      expr
                      (cons (list (car (car varassigns))
-                                 (eval (cadr (car varassigns)) env heap))
-                           env) heap)))
+                                 (car (eval (cadr (car varassigns)) env heap)))
+                           env) (second (eval (cadr (car varassigns)) env heap)))))
+;;(trace evalvarassign)
+
+
 
 ;; is op arithmatic operation
 (define (arithop op)
@@ -184,31 +189,31 @@
 ;; output: '(Cannot Evaluate) or some number
 ;; used: myapply 
 (define (evalarith op expr1 expr2 env heap)
- (myapply op (eval expr1 env heap) (eval  expr2 env heap) heap))
+ (myapply op (eval expr1 env heap) (eval  expr2 env (second (eval expr1 env heap))) (second (eval  expr2 env (second (eval expr1 env heap))))))
 
 ;; input: true/false, '(Cannot Evaluate) expression values
 ;; output: '(Cannot Evaluate) or expression values
 ;;         expression values can be '(Cannot Evaluate)
 (define (ifthenelse condition expr1 expr2 env heap)
-  (if (equal? condition '(Cannot Evaluate))
-      '(Cannot Evaluate)
+  (if (checkexception condition)
+      (cons condition (list heap))
       (if condition
-          (eval expr1 env heap)
-          (eval expr2 env heap))))
-
+          (cons (car (eval expr1 env heap)) (list (second (eval expr1 env heap))))
+          (cons (car (eval expr2 env heap)) (list (second (eval expr2 env heap)))))))
+(trace ifthenelse)
 ;; input: conditions of the form (gt/lt/eq expr1 expr2), (or/and cond1 cond2), (not cond)
 ;; output: true/false, '(Cannot Evaluate)
 ;; used: myapply
 (define (evalcond condexpr env heap)
   (cond
     [ (equal? (car condexpr) 'gt)
-      (myapply 'gt (eval (cadr condexpr) env heap) (eval (cadr (cdr condexpr)) env heap) heap) ]
+      (myapply 'gt (car (eval (cadr condexpr) env heap)) (eval (cadr (cdr condexpr)) env heap) (second (eval (cadr condexpr) env heap)) )]
     
     [ (equal? (car condexpr) 'lt)
-      (myapply 'lt (eval (cadr condexpr) env heap) (eval (cadr (cdr condexpr)) env heap) heap) ]
+      (myapply 'lt (car (eval (cadr condexpr) env heap)) (eval (cadr (cdr condexpr)) env heap) (second (eval (cadr condexpr) env heap)) ) ]
 
     [ (equal? (car condexpr) 'eq)
-      (myapply 'eq (eval (cadr condexpr) env heap) (eval (cadr (cdr condexpr)) env heap) heap) ]
+      (myapply 'eq (car (eval (cadr condexpr) env heap)) (eval (cadr (cdr condexpr)) env heap) (second (eval (cadr condexpr) env heap))) ]
     
     [ (equal? (car condexpr) 'and)
       (myapply 'and (evalcond (cadr condexpr) env)
@@ -222,37 +227,44 @@
       (myapply 'not (evalcond (cadr condexpr) env heap)
                false) ] ;; dummy
     ))
-
-
+;;(trace eval)
+(trace evalcond)
 ;; input: some operator, arithmatic or conditional
 ;;        operand-values for the operator
 ;; output: '(Cannot Evaluate) or number or boolean 
 (define (myapply op val1 val2 heap)
   (cond
-    [ (or (equal? (findval2 val1) '(exception fma)) (equal? (findval2 val2) '(exception fma))) (cons '(exception fma) (list heap))]
-    [ (or (equal? (findval2 val1) '(exception ooma)) (equal? (findval2 val2) '(exception fma))) (cons '(exception ooma) (list heap))]
-    [ (or (equal? (findval2 val1) '(exception oom)) (equal? (findval2 val2) '(exception fma))) (cons '(exception oom) (list heap))]
-    [ (equal? op '+) (+ (findval val1) (findval val2)) ]
-    [ (equal? op '-) (- (findval val1) (findval val2)) ]
-    [ (equal? op '*) (* (findval val1) (findval val2)) ]
-    [ (equal? op 'gt) (> (findval val1) (findval val2)) ]
-    [ (equal? op 'lt) (< (findval val1) (findval val2)) ]
-    [ (equal? op 'eq) (equal? (findval val1) (findval val2)) ]
-    [ (equal? op 'and) (and (findval val1) (findval val2)) ]
-    [ (equal? op 'or) (or (findval val1) (findval val2)) ]
-    [ (equal? op 'not) (not (findval val1)) ]))
-(trace myapply)
+    [ (or (equal? (checkexception val1) '(exception fma)) (equal? (checkexception val2) '(exception fma))) (cons '(exception fma) (list heap))]
+    [ (or (equal? (checkexception val1) '(exception ooma)) (equal? (checkexception val2) '(exception ooma))) (cons '(exception ooma) (list heap))]
+    [ (or (equal? (checkexception val1) '(exception oom)) (equal? (checkexception val2) '(exception oom))) (cons '(exception oom) (list heap))]
+    [ (equal? op '+) (cons (+ (findval val1) (findval val2)) (list heap)) ]
+    [ (equal? op '-) (cons (- (findval val1) (findval val2)) (list heap))]
+    [ (equal? op '*) (cons (* (findval val1) (findval val2)) (list heap)) ]
+    [ (equal? op 'gt) (cons (> (findval val1) (findval val2)) (list heap)) ]
+    [ (equal? op 'lt) (cons (< (findval val1) (findval val2)) (list heap)) ]
+    [ (equal? op 'eq) (cons (equal? (findval val1) (findval val2)) (list heap)) ]
+    [ (equal? op 'and) (cons (and (findval val1) (findval val2)) (list heap))]
+    [ (equal? op 'or) (cons (or (findval val1) (findval val2)) (list heap)) ]
+    [ (equal? op 'not) (cons (not (findval val1)) (list heap)) ]))
+;;(trace myapply)
+
 (define (findval val)
   (if (not (list? val))
       val
-      (findval (car val))))
-(define (findval2 val)
-  (if (not (list? val))
-      val
-      (if (not (list? (car val)))
+      (if (or (equal? val '(exception fma)) (equal? val '(exception ooma)) (equal? val '(exception oom)) )
           val
           (findval (car val)))))
- (trace findval2)
+
+(define (checkexception val)
+  (if (not (list? val))
+      false
+      (if (equal? val '(exception fma))
+          '(exception fma)
+          (if (equal? val '(exception ooma))
+              '(exception ooma)
+              (if (equal? val '(exception oom))
+                  '(exception oom)
+                  (checkexception (car val)))))))
 ;; Functions added for the assignment 4
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -264,8 +276,8 @@
 (define (paramargs paramlist exprlist env heap)
   (if (null? paramlist)
       '()
-      (cons (list (car paramlist) (eval (car exprlist) env heap))
-            (paramargs (cdr paramlist) (cdr exprlist) env))))
+      (cons (list (car paramlist) (car (eval (car exprlist) env heap)))
+            (paramargs (cdr paramlist) (cdr exprlist) env heap))))
 
 ;; find the function parameters
 ;; input: function name and arg-length
