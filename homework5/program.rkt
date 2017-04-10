@@ -1,31 +1,36 @@
 #lang racket
 (provide (all-defined-out))
 
-(define program1
-'(var ((x (deref 1))) (+ x 1)))
-;;heap:'((1 free))
-(define program2
-'(var ((x (ref 32)))
-(var ((y (+ x 1)))
-(deref y))))
-;; exception: heap '()
-;; exception: heap '((1 free))
-;; exception: heap '((1 22))
-;; 3 '((1 10) (2 22) (2 1)): heap '((1 free) (2 22) (3 free))
-;; 4
-(define prog1
-  '(ref (ref 10)))
-(define p1
-  '(ref 10))
-;; '(30 ((1 10) (2 20))): heap '((1 free) (2 free))
-;; 2
-(define prog2
-  '(var ((x (ref 10)))
-     (var ((y (deref x)))
-       (var ((x (ref 20)))
-         (var ((z (deref x)))
-           (+ y z))))))
+(define heap '((1 2000) (2 400) (3 30) (4 0) (5 100) (6 27) (7 77) (8 19) ))
+(define env (list (list 'x 1) (list 'y (length heap))))
 
+(define qsortprog
+  '(fun ((swap (x y))
+         (var ((t1 (deref x)) (t2 (deref y)))
+              (var ((x1 (wref y t1))
+                    (y1 (wref x t2)))
+                   y)))
+        ;; Partition the array in the heap
+        (fun ((partition (i j k))
+               ((lt k j)   ;; high < low
+                (apply (swap (i k)))  ;; partition done
+                ((not (gt (deref j) (deref i)))
+                 (apply (partition (i (+ j 1) k)))
+                 ((lt (deref i) (deref k))
+                  (apply (partition (i j (- k 1))))
+                  (var ((x (apply (swap (j k)))))
+                       (apply (partition (i j k))))))))
+             ;; Quicksorting
+             (fun ((qsort (first last))
+                   ((lt first last)
+                    (var ((p (apply (partition (first (+ first 1) last)))))
+                         (var ((r1 (apply (qsort (first p))))
+                               (r2 (apply (qsort ((+ p 1) last)))))
+                              0))
+                    1))
+                  (apply (qsort (x y)))))))  ;; x is the first heap location to sort and y is the last heap location
+                                                     ;; locations values are not required to be presented in a sorted fashion in the
+                                                     ;; heap
 ;;;;;;;;;;;
 ;; Tests ;;
 ;;;;;;;;;;;
