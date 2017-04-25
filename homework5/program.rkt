@@ -1,10 +1,15 @@
+;; For homework assignment 5: Spring'17
+
 #lang racket
 (provide (all-defined-out))
 
-(define heap '((1 2000) (2 400) (3 30) (4 0) (5 100) (6 27) (7 77) (8 19) ))
-(define env (list (list 'x 1) (list 'y (length heap))))
 
-(define qsortprog
+
+(define heap1 '((2 400) (1 1000) (3 30) (4 0) (7 77) (6 27) (5 100) (8 19) ))
+(define env1 (list (list 'x 2) (list 'y 8)))
+;'(0 ((2 0) (1 1000) (3 19) (4 27) (7 100) (6 77) (5 30) (8 400)))
+
+(define prog1
   '(fun ((swap (x y))
          (var ((t1 (deref x)) (t2 (deref y)))
               (var ((x1 (wref y t1))
@@ -28,257 +33,118 @@
                                (r2 (apply (qsort ((+ p 1) last)))))
                               0))
                     1))
-                  (apply (qsort (x y)))))))  ;; x is the first heap location to sort and y is the last heap location
-                                                     ;; locations values are not required to be presented in a sorted fashion in the
-                                                     ;; heap
-;;;;;;;;;;;
-;; Tests ;;
-;;;;;;;;;;;
+                  (apply (qsort (x y)))))))
 
-;; Simple 'ref' test.
-;; Modifies the input heap, setting the value
-;; of the first free location to 10.
-;; Examples:
-;; 	(eval test1 '() '()) -> OOM
-;;	(eval test1 '() '((1 free))) -> '(1 ((1 10)))
-(define test1
-    '(ref (* 5 2))
-)
+;2
+;; '(10 ((1 10) (2 22) (3 free)))
+;; chaining heap across variable assignments
+(define heap2 '((1 free) (2 22) (3 free)))
+(define prog2
+  '(var ((x (ref 10)) (y x)) (deref y)))
 
-;; Simple 'free' test.
-;; Frees memory at location 1 (will return a value of 1).
-;; Examples:
-;;	(eval test2 '() '()) -> OOMA
-;;	(eval test2 '() '((1 free))) -> FMA
-;;	(eval test2 '() '((1 32))) -> '(1 ((1 free)))
-(define test2
-    '(free 1)
-)
-
-;; Simple 'deref' test.
-;; Dereferences the value at location 4.
-;; Examples:
-;;	(eval test3 '() '()) -> OOMA
-;;	(eval test3 '() '((4 free))) -> FMA
-;;	(eval test3 '() '((4 32))) -> '(32 ((4 32)))
-(define test3
-    '(deref 4)
-)
-
-;; Simple 'wref' test.
-;; (wref addr value)
-;; Writes the value 27 to location 2.
-;; Examples:
-;;	(eval test4 '() '()) -> OOMA
-;;	(eval test4 '() '((2 free))) -> FMA
-;;	(eval test4 '() '((2 1))) -> '(27 ((2 27)))
-(define test4
-    '(wref 2 (* 3 (* 3 3)))
-)
-
-;; Allocates a value on the heap and stores 12.
-;; Returns a result of the format (x ((x 12)))
-;; where x is the address of the first free location in memory.
-;; Examples:
-;;	(eval test5 '() '()) -> OOM
-;;	(eval test5 '() '((16 free) (1 free))) -> '(16 ((16 12) (1 free)))
-(define test5
-    '(var ((x (ref 12))) x)
-)
-
-;; Here is the C code for test5.
-;;	int * x = malloc(sizeof(int));
-;; 	*x = 12;
-;; 	int * y = x;
-;; 	*y = 128;
-;; 	print(*x)
-;; Note needs at least one free heap location.
-;; Returns: '(128 ((addr 128))
-;; If no heap is given: OOM Exception
-;; Examples:
-;;	(eval test6 '() '()) -> OOM
-;;	(eval test6 '() '((1 free))) -> (128 ((1 128)))
-(define test6
-    '(var ((x (ref 12)))
-	(var ((y x))
-	    (var ((tmp (wref y 128)))
-		(deref x)
-))))
-
-;; Adds the two input values to the heap by decrementing the first by one each iteration
-;; and incrementing the second each iteration.
-;; Example:
-;;	(eval test7 '() '())			-> OOMA
-;;	(eval test7 '() '((1 1) (2 1)))		-> '(2 '((1 0) (2 2)))
-;;	(eval test7 '() '((1 2) (2 3)))		-> '(5 '((1 0) (2 5)))
-;;	(eval test7 '() '((1 10) (2 6)))	-> '(16 '((1 0) (2 16)))
-(define test7
-    ;; add(* x, * y)
-    ;; Recursively adds the value pointed to by x, to the value pointed to by y.
-    '(fun ((add (x y)) 
-	((lt (wref x (- (deref x) 1)) 1) 
-	    (wref y (+ 1 (deref y))) ;; Base case, return y,
-	    (wref y (+ 1 (apply (add (x y))))))) ;; and add one to 1 recursively.
-	(apply (add (1 2)))
-))
-
-;; Adds two increments of x together.
-;; Note as x is initially 13, 
-;; after one increment it is 14
-;; and after the second it is 15
-;; thus the result is 14 + 15 = 29.
-;; Examples:
-;;	(eval test8 '() '()) -> OOM
-;;	(eval test8 '() '((1 free))) -> '(29 ((1 15)))
-(define test8
-    ;; Increments the value pointed to by x.
-    '(fun ((incp (x)) (wref x (+ (deref x) 1)))
-	(var ((x (ref 13)))
-	    ;; Add two increments of x together.
-	    (+ 
-	      (apply (incp (x)))
-	      (apply (incp (x)))
-))))
-
-;; Simple test for to make sure you can catch exceptions within operations.
-;; Example:
-;;	(eval test9 '() '()) -> OOMA
-;;	(eval test9 '() '((1 2))) -> OOMA
-;;	(eval test9 '() '((2 1))) -> OOMA
-;;	(eval test9 '() '((1 2) (2 3))) -> '(5 ((1 2) (2 3)))
-(define test9
-    '(+ (deref 1) (deref 2))
-)
-
-;; Simple test for to make sure you can catch exceptions within conditionals
-;; Example:
-;;	(eval test10 '() '()) -> OOMA
-;;	(eval test10 '() '((1 2))) -> OOMA
-;;	(eval test10 '() '((2 1))) -> OOMA
-;;	(eval test10 '() '((1 1) (2 2))) -> '(0 ((1 1) (2 2)))
-(define test10
-    '((gt (deref 1) (deref 2)) 1 0)
-)
-
-;;;;;;;;;;;;;;;;;;
-;; HW5 Provided ;;
-;;;;;;;;;;;;;;;;;;
-
-;; (eval prov1 '() '((1 free))) -> FMA
-;; (eval prov1 '() '((1 3))) -> '(4 '((1 3)))
-(define prov1
-    '(var ((x (deref 1))) (+ x 1))
-)
-
-;; (eval prov2 '() '((1 free))) -> OOMA
-;; (eval prov2 '() '((1 free) (2 64))) -> '(64 ((1 32) (2 64)))
-(define prov2
-    '(var ((x (ref 32)))
-	(var ((y (+ x 1)))
-	    (deref y)))
-)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;        Old Function Samples         ;;
-;; (these of course should still work) ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; (eval prov_old2 ’((x 3)) '()) returns '(6 ())
-;; (eval prov_old2 ’((x 4)) '()) returns '(24 ())
-(define prov_old2
-    '(fun ((f1 (x)) ((gt x 0)
-	(* x (apply (f1 ((- x 1)))))
-	1))
-    (apply (f1 (x))
-)))
-
-;; (eval prov_old3 '((y 10)) '()) = '(12 ())
-(define prov_old3
-  '(fun ((f (a b)) (var ((x a) (y b)) (+ x y))) (apply (f (y 2))
-)))
-
-;; (eval prov_old4 '() '()) = '(2 ())
-(define prov_old4
-    '(var ((x 1))
-	(fun ((f (x)) x)
-	    (fun ((g ()) (var ((x (+ x 1))) (apply (f (x)))))
-		(apply (g ()))
-))))
-
-;; (eval prov_old5 '() '()) = '(1 ())
-(define prov_old5
-    '(var ((x 1))
-	(fun ((f ()) x)
-	    (fun ((g ()) (var ((x (+ x 1))) (apply (f ()))))
-		(apply (g ()))
-))))
-
-;; (eval prov_old6 '((x 10)) '()) = '(55 ())
-(define prov_old6
-    '(fun ((f (n))
-	((eq n 0) 0 ((eq n 1) 1 (+ (apply (f ((- n 1)))) (apply (f ((- n 2))))))))
-	    (apply (f (x)))
-))
-
-;; (eval prov_old7 '((x 10)) '()) = '(3628800 ())
-(define prov_old7
-    '(fun ((f (n a))
-	((eq n 0) a (apply (f ((- n 1) (* n a))))))
-	    (fun ((g (n)) (apply (f (n 1))))
-		(apply (g (x)))
-)))
-
-;; VALID
-;; Returns pi.
-;; Results in 4.14159265
-(define prog0
-    '(fun ((pi ()) 3.14159265) 
-	(apply (pi ())
-)))
-
-;; VALID
-;; Adds one to pi.
-;; Results in 4.14159265
-(define progr1
-    '(fun ((pi ()) 3.14159265) 
-	(+ 1 (apply (pi ()))
-)))
-
-;; VALID
-;; Adds two, then adds one to z,
-;; where z must be provided by the input environment.
-;; (eval prog3 '((z 2))) returns 5
+;3
+;; chaining heap across arithmatic operations
+;'(11 ((1 10) (2 22) (3 free)))
 (define prog3
-    '(fun ((addone (x)) (+ x 1))
-	(fun ((addtwo (y)) (+ y 2))
-	    (apply (addone (
-		(apply (addtwo (z)))
-))))))
+  '(+ (ref 10) (var ((y (deref 1))) y)))
 
-;; VALID
-;; Program -> Expr -> Number
-(define prog5 525600)
+;4
+;; chaining heap across
+;;'(10 ((1 10) (2 22) (3 20)))
+(define prog4
+  '((or (gt (ref 10) (deref 1))
+        (gt (ref 20) (deref 2)))
+    (deref 2)
+    (deref 1)))
 
-;; VALID
-;; Program -> Expr -> Variable
-(define prog6 'x)
+;5
+;; chaining of application arguments
+;; '(22 ((1 10) (2 22) (3 20)))
+(define prog5
+  '(fun ((f (x y z w)) ((gt x y) z w))
+        (apply (f ((ref 10) (ref 20) (deref 1) (deref 2))))))
 
-;; VALID
-;; same as prog8, but pi is defined
-;; evaluates to 0, as !(pi > 1) evaluates to FALSE
+; 6 7 8
+;; check for free
+(define heap6 '((1 free) (2 22) (3 free) (4 44)))
+(define env6 '((x 2) (y 4))) ; '(4 ((1 free) (2 22) (3 free) (4 free)))
+(define env6a '((x 2) (y 3))) ; '((exception fma) ((1 free) (2 22) (3 free) (4 44)))
+(define env6b '((x 2) (y 5))) ; '((exception ooma) ((1 free) (2 22) (3 free) (4 44)))
+(define prog6
+  '((gt x y)
+    (free x)
+    (free y)))
+
+; 9 10
+;; check for wref
+(define heap7 '((1 20) (2 free) (4 40))) ;; '(200 ((1 20) (2 200) (4 40)))
+(define heap7a '((1 20) (2 40))) ;; '((exception oom) ((1 20) (2 40)))
+(define prog7
+  '(var ((x (ref 10)) (y x)) (wref y 200)))
+
+; 11
+;; heap7: '((exception ooma) ((1 20) (2 10) (4 40))) ;;  not added
+(define heap7b '((1 20) (2 free) (3 free) (4 40))) ;; '((exception fma) ((1 20) (2 10) (3 free) (4 40)))
+(define prog7a
+  '(var ((x (ref 10)) (y x)) (wref (+ y 1) 200)))
+
+; 12
+;; example similar to the one from lecture
+;; involving multiple heap operations
+(define heap8 '((1 20) (2 free) (3 free) (4 40))) ;; '(2 ((1 20) (2 free) (3 free) (4 40)))
+(define prog8
+  '(var ((x (ref 10)))
+        ((gt (wref x 20) (wref x 40))
+         ;; then
+         (deref x)
+         (free x))))
+
+; 13
+;; heap8 '(22 ((1 20) (2 free) (3 free) (4 40)))
+(define prog8a
+  '(var ((x (ref 10)) (y (free x)) (z (ref 20))) (+ (deref z) (free z))))
+
+; 14
+(define heap8b '((1 20) (2 free) (3 2) (4 free))) ;; '((exception fma) ((1 20) (2 free) (3 2) (4 2)))
+(define prog8b
+  '(var ((x (ref 10)) (z (ref 20)) (y (free x))) (var ((p (wref z y))) (deref p))))
+
+; 15
+;; involving multiple heap operations with functions
+(define heap9 '((1 free) (2 free) (5 50) (3 20))) ; '(50 ((1 free) (2 free) (5 50) (3 20)))
 (define prog9
-    '(fun ((pi ()) 3.14159265) 
-	((not (gt (apply (pi ())) 1))
-	    1
-	    0
-)))
+  '(fun ((f (x))
+         (fun ((g (y))
+               ((gt y 4) (deref y) (apply (f ((+ y 1))))))
+              (apply (g (x))))
+         ((gt x 4) (deref x) (apply (g ((+ x 2))))))
+        (apply (f (0)))))
 
-;; VALID
-;; Calls function pi to assign pi to x,
-;; then returns 2 * PI = 6.2831853
+; 16
+; 17
+(define heap10 '((1 free) (2 20) (3 free) (5 free) (4 20) (6 free))) ;; '(24 ((1 1) (2 20) (3 2) (5 6) (4 20) (6 24)))
+(define heap10a '((1 free) (2 20) (3 free) (5 free) (4 20) (6 20))) ;; '((exception oom) ((1 1) (2 20) (3 2) (5 6) (4 20) (6 20)))
+(define prog10
+  '(fun ((f (x))
+         ((gt x 1) (var ((y (* x (apply (f ((- x 1)))))) (p (ref y))) y)
+                   (var ((y (ref 1))) 1)))
+         (apply (f (4)))))
+
+; 18
+;; heap10 '(1 ((1 free) (2 20) (3 free) (5 free) (4 20) (6 free)))
+(define prog11
+  '(fun ((f (x))
+         ((gt x 0)
+          (var ((y (ref x))) (var ((p (apply (f ((- x 1)))))) (free y)))
+          x))
+        (apply (f (2))))) 
+
+
+; 19
+;; heap10 '(0 ((1 2) (2 20) (3 1) (5 free) (4 20) (6 free)))
 (define prog12
-    '(fun ((pi ()) 3.14159265) 
-	(var
-	    ((x (apply (pi ()))))
-	    (* 2 x)
-)))
+  '(fun ((f (x))
+         ((gt x 0)
+          (var ((y (ref x)) (z (wref y x))) (apply (f ((- x 1)))))
+          x))
+        (apply (f (2)))))
