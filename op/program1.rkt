@@ -14,6 +14,10 @@
   '(fun ((f (x y z)) ((gt z y) x y))
 (apply (f ((+ 2 2) (+ 4 4) (+ 0 1))))))
 
+(define t3
+  '(fun ((f (x y z)) ((gt z y) x y))
+(apply (f ((ref 2) (+ 4 4) (+ 0 1))))))
+
 (define qsortprog
   '(fun ((swap (x y))
          (var ((t1 (deref x)) (t2 (deref y)))

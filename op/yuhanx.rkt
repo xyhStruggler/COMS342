@@ -16,7 +16,7 @@
     [ (number? expr)  (list expr heap) ] 
 
     ;; variable
-    [ (symbol? expr)  (list (findvalue expr env) heap) ]
+    [ (symbol? expr)  (findvalue expr env heap) ]
 
     ;; arithexpression: use evalarith
     [ (arithop (car expr))
@@ -42,12 +42,12 @@
     ;; expressions inside deref cannot produce any exceptions 
     [ (equal? (car expr) 'deref)
       ;; then read from the heap
-      (derefhandler (value (eval (cadr expr) env heap)) heap) ]
+      (derefhandler (value (eval (cadr expr) env heap)) (cadr (eval (cadr expr) env heap)) ) ]
 
     ;; wref: use wrefhandler
     [ (equal? (car expr) 'wref)
       ;; then
-      (wrefhandler (value (eval (cadr expr) env heap)) (value (eval (cadr (cdr expr)) env heap)) heap) ]
+      (wrefhandler (value (eval (cadr expr) env heap)) (value (eval (cadr (cdr expr)) env heap)) (cadr (eval (cadr expr) env heap))) ]
 
     ;; free: use freehandler
     [ (equal? (car expr) 'free)
@@ -67,12 +67,12 @@
 ;; input: variable, environment
 ;; output: value to which the variable is mapped to in the environment
 ;;         It can be '(Cannot Evaluate) 
-(define (findvalue x env)
+(define (findvalue x env heap)
   (if (null? env)  
-      '(Cannot Evaluate)
+      (list '(Cannot Evaluate) heap)
       (if (equal? (car (car env)) x)
-          (cadr (car env))
-          (findvalue x (cdr env)))))
+          (eval (cadr (car env)) env heap)
+          (findvalue x (cdr env) heap))))
 
 ;; is op arithmatic operation
 (define (arithop op)
@@ -107,19 +107,17 @@
       (eval expr env heap)
       ;; else: use the same method as above to avoid recomputations
       (evalvarassign1 (car (car varassigns))
-                      (eval (cadr (car varassigns)) env heap)
+                      (cadr (car varassigns))
                       (cdr varassigns)
                       expr
-                      env)))
+                      env
+                      heap)))
 ;; input: variable (value/exception heap) varassigns expr env
 ;; output: evaluate expr in new env and heap (mutual recursion with evalvarassign)
-(define (evalvarassign1 variable sem varassigns expr env)
-  (if (list? (car sem)) ;; exception already!!
-      sem
-      ;; call evalvarassign with the rest of varassigns
-      ;; create the correct environment and heap
-      (evalvarassign varassigns expr (cons (list variable (value sem)) env) (heap sem))))
-
+(define (evalvarassign1 variable sem varassigns expr env heap)
+  (evalvarassign varassigns expr (cons (list variable sem) env) heap))
+(trace evalvarassign)
+;;(trace evalvarassign1)
 
 ;; translate applications to var-expressions as discussed in class
 ;; input: expr = (f ArgList)

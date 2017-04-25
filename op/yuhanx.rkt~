@@ -233,16 +233,20 @@
       semoperand1
       (if (equal? operand2 'dummy) ;; op is not
           (list (myapply op (value semoperand1) 'dummy) (heap semoperand1))
-          (cond
-            [ (or (equal? op 'gt)
-                  (equal? op 'lt)
-                  (equal? op 'eq))
-              (evalcond3 op (value semoperand1) (eval operand2 env (heap semoperand1))) ] ;; basic conditions
-            [ else
-              (evalcond3 op (value semoperand1) (evalcond operand2 env (heap semoperand1))) ]
-            ))))
+          (if (and (equal? op 'and) (not (value semoperand1)))
+              (list false (heap semoperand1))
+              (if (and (equal? op 'or) (value semoperand1))
+                  (list true (heap semoperand1))
+                  (cond
+                    [ (or (equal? op 'gt)
+                          (equal? op 'lt)
+                          (equal? op 'eq))
+                      (evalcond3 op (value semoperand1) (eval operand2 env (heap semoperand1))) ] ;; basic conditions
+                    [ else
+                      (evalcond3 op (value semoperand1) (evalcond operand2 env (heap semoperand1))) ]
+                    ))))))
                   
-
+(trace evalcond2)
 (define (evalcond3 op valoperand1 semoperand2)
   (if (list? (value semoperand2)) ;; exception
       semoperand2
