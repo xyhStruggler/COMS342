@@ -3,7 +3,7 @@
 (require "program.rkt")
 (provide (all-defined-out))
 
-
+#|  |#
 
 ;; to make sure I remember what I am using
 (define (value result) (car result))
@@ -52,17 +52,17 @@
     ;; free: use freehandler
     [ (equal? (car expr) 'free)
       ;; then
-      (freehandler (value (eval (cadr expr) env heap)) heap) ]
+      (freehandler (value (eval (cadr expr) env heap)) (cadr (eval (cadr expr) env heap))) ]
 
     ;; ref: use refhandler
     [ (equal? (car expr) 'ref)
       ;; then
-      (refhandler (value (eval (cadr expr) env heap)) heap) ]
+      (refhandler (value (eval (cadr expr) env heap)) (cadr (eval (cadr expr) env heap))) ]
 
     ;; nothing else left: must be a cond expression
     [ else  (ifthenelse (car expr) (cadr expr) (cadr (cdr expr)) env heap) ]
     ))
-(trace eval)
+;;(trace eval)
 ;; helpers
 ;; input: variable, environment
 ;; output: value to which the variable is mapped to in the environment
@@ -116,7 +116,7 @@
 ;; output: evaluate expr in new env and heap (mutual recursion with evalvarassign)
 (define (evalvarassign1 variable sem varassigns expr env heap)
   (evalvarassign varassigns expr (cons (list variable sem) env) heap))
-(trace evalvarassign)
+;;(trace evalvarassign)
 ;;(trace evalvarassign1)
 
 ;; translate applications to var-expressions as discussed in class
@@ -163,14 +163,18 @@
 ;; input: location, value, heap
 ;; output: value written at location/exception heap
 (define (wrefhandler location value heap)
-  (if (null? heap)
-      (list '(exception ooma) heap)
-      (if (equal? (car (car heap)) location)
-          (if (equal? (cadr (car heap)) 'free)
-              (list '(exception fma) heap)
-              (list value (cons (list location value) (cdr heap))))
-          (mycons (car heap) (wrefhandler location value (cdr heap)))))) 
-
+  (if (list? value)
+      (list value heap)
+      (if (list? location)
+          (list location heap)
+          (if (null? heap)
+              (list '(exception ooma) heap)
+              (if (equal? (car (car heap)) location)
+                  (if (equal? (cadr (car heap)) 'free)
+                      (list '(exception fma) heap)
+                      (list value (cons (list location value) (cdr heap))))
+                  (mycons (car heap) (wrefhandler location value (cdr heap))))))))
+;;(trace wrefhandler)
 (define (mycons el pair)
   (list (car pair) (cons el (cadr pair))))
 
@@ -244,7 +248,7 @@
                       (evalcond3 op (value semoperand1) (evalcond operand2 env (heap semoperand1))) ]
                     ))))))
                   
-(trace evalcond2)
+;;(trace evalcond2)
 (define (evalcond3 op valoperand1 semoperand2)
   (if (list? (value semoperand2)) ;; exception
       semoperand2
@@ -263,7 +267,7 @@
     [ (equal? op 'or) (or val1 val2) ]
     [ (equal? op 'not) (not val1) ]))  
                    
-;(trace eval)
+;;(trace eval)
 
 
                   
