@@ -3,7 +3,10 @@
 (require "program.rkt")
 (provide (all-defined-out))
 
-#|  |#
+#| Question 2
+   The Lazy evaluation will result in a different semantics in some special cases
+   
+|#
 
 ;; to make sure I remember what I am using
 (define (value result) (car result))
