@@ -3,6 +3,8 @@
 (require "program.rkt")
 (provide (all-defined-out))
 
+#| Question 1: Using *** to show the changes I made in Comments |#
+
 #| Question 2
 
 The Lazy evaluation will result in a different semantics in some special cases
@@ -105,22 +107,22 @@ However, if we use lazy evaluation, the (ref 2) part will not be evaluated since
     ;; deref: use derefhandler - we will just pass the values there as
     ;; expressions inside deref cannot produce any exceptions 
     [ (equal? (car expr) 'deref)
-      ;; then read from the heap *** here we are using the new heap after evaluating the location
+      ;; then read from the heap              *** here we are using the new heap after evaluating the location
       (derefhandler (value (eval (cadr expr) env heap)) (cadr (eval (cadr expr) env heap)) ) ]
 
     ;; wref: use wrefhandler
     [ (equal? (car expr) 'wref)
-      ;; then *** here we are using the new heap after evaluating the location
+      ;; then                                 *** here we are using the new heap after evaluating the location
       (wrefhandler (value (eval (cadr expr) env heap)) (value (eval (cadr (cdr expr)) env heap)) (cadr (eval (cadr expr) env heap))) ]
 
     ;; free: use freehandler
     [ (equal? (car expr) 'free)
-      ;; then *** here we are using the new heap after evaluating the location
+      ;; then                                 *** here we are using the new heap after evaluating the location
       (freehandler (value (eval (cadr expr) env heap)) (cadr (eval (cadr expr) env heap))) ]
 
     ;; ref: use refhandler
     [ (equal? (car expr) 'ref)
-      ;; then *** here we are using the new heap after evaluating the value
+      ;; then                                  *** here we are using the new heap after evaluating the value
       (refhandler (value (eval (cadr expr) env heap)) (cadr (eval (cadr expr) env heap))) ]
 
     ;; nothing else left: must be a cond expression
@@ -172,7 +174,7 @@ However, if we use lazy evaluation, the (ref 2) part will not be evaluated since
       ;; else: use the same method as above to avoid recomputations
       (evalvarassign1 (car (car varassigns))
                       (cadr (car varassigns))
-                      (cdr varassigns)
+                      (cdr varassigns) ;;*** instead of evaluating it then store it in the env, we just store it directly.
                       expr
                       env
                       heap)))
@@ -297,10 +299,10 @@ However, if we use lazy evaluation, the (ref 2) part will not be evaluated since
       semoperand1
       (if (equal? operand2 'dummy) ;; op is not
           (list (myapply op (value semoperand1) 'dummy) (heap semoperand1))
-          (if (and (equal? op 'and) (not (value semoperand1)))
-              (list false (heap semoperand1))
-              (if (and (equal? op 'or) (value semoperand1))
-                  (list true (heap semoperand1))
+          (if (and (equal? op 'and) (not (value semoperand1))) ;;*** if op is 'and', and the first condition is false.
+              (list false (heap semoperand1)) ;;*** instead of evaluating the following condition, we return false directly. 
+              (if (and (equal? op 'or) (value semoperand1)) ;;*** if op is 'or', and the first condition is true.
+                  (list true (heap semoperand1)) ;;*** instead of evaluating the following condition, we return true directly. 
                   (cond
                     [ (or (equal? op 'gt)
                           (equal? op 'lt)

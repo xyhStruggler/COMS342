@@ -4,7 +4,7 @@
 (provide (all-defined-out))
 
 (define t1
-  '( (and (gt 1 2) (or (lt 1 2) (eq 1 1)))
+  '( (and (gt 3 2) (gt 2 3) (or (lt 1 2) (eq 1 1)))
 (+ 1 2)
 (+ 1 3)
 ))
