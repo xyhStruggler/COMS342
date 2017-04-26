@@ -4,9 +4,19 @@
 (provide (all-defined-out))
 
 #| Question 2
-   The Lazy evaluation will result in a different semantics in some special cases
-   
+
+The Lazy evaluation will result in a different semantics in some special cases
+1.
+When CondExpr (and, or) if the first conditions false (and) / true (or) the rest of the condiitons will not be evaluate.
+If the rest of the condiitons contain any changes to heap, those changes will not be evaluate and it will effect the semantics of the program.
+Example1: 
 |#
+
+(define t4
+  '((and (gt 1 2) (lt (var ((x (ref 10))) x) 2))
+x
+(deref 1)
+))
 
 ;; to make sure I remember what I am using
 (define (value result) (car result))
@@ -251,7 +261,7 @@
                       (evalcond3 op (value semoperand1) (evalcond operand2 env (heap semoperand1))) ]
                     ))))))
                   
-;;(trace evalcond2)
+(trace evalcond2)
 (define (evalcond3 op valoperand1 semoperand2)
   (if (list? (value semoperand2)) ;; exception
       semoperand2
