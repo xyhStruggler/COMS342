@@ -215,13 +215,15 @@ However, if we use lazy evaluation, the (ref 2) part will not be evaluated since
 ;; input: location and heap
 ;; output: value at location/exception paired with heap 
 (define (derefhandler location heap)
-    (if (null? heap)
-        (list '(exception ooma) heap)
-        (if (equal? (car (car heap)) location)
-            (if (equal? (cadr (car heap)) 'free)
-                (list '(exception fma) heap)
-                (list (cadr (car heap)) heap))
-            (mycons (car heap) (derefhandler location (cdr heap)))))) ;;; mycons will add the element to the second element of pair returned.
+  (if (list? location)
+      (list location heap)
+      (if (null? heap)
+          (list '(exception ooma) heap)
+          (if (equal? (car (car heap)) location)
+              (if (equal? (cadr (car heap)) 'free)
+                  (list '(exception fma) heap)
+                  (list (cadr (car heap)) heap))
+              (mycons (car heap) (derefhandler location (cdr heap))))))) ;;; mycons will add the element to the second element of pair returned.
 
 ;; wref
 ;; input: location, value, heap
@@ -245,21 +247,25 @@ However, if we use lazy evaluation, the (ref 2) part will not be evaluated since
 ;; input: location to free
 ;; output: location/exception heap
 (define (freehandler location heap)
-  (if (null? heap)
-      (list '(exception ooma) heap)
-      (if (equal? (car (car heap)) location)
-          (if (equal? (cadr (car heap)) 'free)
-              (list '(exception fma) heap)
-              (list location (cons (list location 'free) (cdr heap))))
-          (mycons (car heap) (freehandler location (cdr heap))))))
+  (if (list? location)
+      (list location heap)
+      (if (null? heap)
+          (list '(exception ooma) heap)
+          (if (equal? (car (car heap)) location)
+              (if (equal? (cadr (car heap)) 'free)
+                  (list '(exception fma) heap)
+                  (list location (cons (list location 'free) (cdr heap))))
+              (mycons (car heap) (freehandler location (cdr heap)))))))
 
 (define (refhandler value heap)
-  (if (null? heap)
-      (list '(exception oom) heap)
-      (if (equal? (cadr (car heap)) 'free) ;; found free location
-          (list (car (car heap)) ;; location
-                (cons (list (car (car heap)) value) (cdr heap)))
-          (mycons (car heap) (refhandler value (cdr heap))))))
+  (if (list? value)
+      (list value heap)
+      (if (null? heap)
+          (list '(exception oom) heap)
+          (if (equal? (cadr (car heap)) 'free) ;; found free location
+              (list (car (car heap)) ;; location
+                    (cons (list (car (car heap)) value) (cdr heap)))
+              (mycons (car heap) (refhandler value (cdr heap)))))))
 
 ;; input: location, value, heap
 ;; output: value written at location/exception heap
