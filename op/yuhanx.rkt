@@ -6,17 +6,66 @@
 #| Question 2
 
 The Lazy evaluation will result in a different semantics in some special cases
-1.
-When CondExpr (and, or) if the first conditions false (and) / true (or) the rest of the condiitons will not be evaluate.
-If the rest of the condiitons contain any changes to heap, those changes will not be evaluate and it will effect the semantics of the program.
-Example1: 
-|#
+Since we have static scoping and dynamic scoping, the lazy evaluation will not effect our static scoping which is our enviornment.
+However, it does effect the dynamic scoping which is our heap.
+Therefore, if our program contains some expression which will update the heap and those expression might not be evaluated since we are using lazy evaluation,
+Our semantics will be different with homework5.
 
-(define t4
+The idea of the lazy evaluation is that we store the Expr for the variable directly in the env, like (x (+ 1 1)), instead of storing (x 2) in env, we store (x (+ 1 1)) in env.
+When we want to use this variable, say x, in the later expression, we evaluate the Expr which belongs to this variable, which is (+ 1 1).
+
+1.
+When CondExpr (and, or) if the first conditions false (and) / true (or) the rest of the condiitons will not be evaluated.
+If the rest of the condiitons contain any expression that will make changes to heap, those changes will not be evaluated and it will effect the semantics of the program.
+
+Example 1:
+(define test1
   '((and (gt 1 2) (lt (var ((x (ref 10))) x) 2))
-x
+1
 (deref 1)
 ))
+if we do (eval test1 '() '((1 free))) in our original one for homework5, it will result '(10 ((1 10)))
+However, if we use lazy evaluation, the (lt (var ((x (ref 10))) x) 2) part will not be evaluated and the result will be '((exception fma) ((1 free)))
+
+Exanmple 2:
+(define test2
+  '((or (gt 2 1) (lt (var ((x (ref 10))) x) 2))
+(deref 1)
+1
+))
+if we do (eval test2 '() '((1 free))) in our original one for homework5, it will result '(10 ((1 10)))
+However, if we use lazy evaluation, the (lt (var ((x (ref 10))) x) 2) part will not be evaluated and the result will be '((exception fma) ((1 free)))
+
+2.
+Since we have changed all evaluation for VarExpr to lazy evaluation, if there is a varassign which will make change to heap such as (x (ref 10))
+but this varassign is not evaluated in the later expressions, then the change will never be evaluated and it will effect the semantics of the program.
+
+Example 1:
+(define test3
+  '(var ((x (ref 10)) (y 1)) (+ y (deref 1))))
+if we do (eval test3 '() '((1 free))) in our original one for homework5, it will result '(11 ((1 10)))
+However, if we use lazy evaluation, the (x (ref 10) part will not be evaluated and the result will be '((exception fma) ((1 free)))
+
+Moreover, if we have ( (x (ref 1)) (y (ref 5)) ) as our varassignseq, ((1 free) (2 free)) and y evaluate before x, then the heap will be ((1 5) (2 1)) instead of ((1 2) (2 5))
+And this will effect our semantics.
+
+3.
+Same with VarExpr, we will have different semantics for evaluating ApplyF.
+Since we use VarExpr to evaluate ApplyF, those args might not be evaluated if they are not called in the later expression. Then the result will be different.
+
+Example 1:
+(define test4
+  '(fun ((f (x y z)) ((gt z y) x (deref 1)))
+(apply (f ((ref 2) (+ 4 4) (+ 0 1))))))
+if we do (eval test4 '() '((1 free))) in our original one for homework5, it will result '(2 ((1 2)))
+However, if we use lazy evaluation, the (ref 2) part will not be evaluated since x is not called in the later expression, so the result will be '((exception fma) ((1 free)))
+
+|#
+
+(define test4
+  '(fun ((f (x y z)) ((gt z y) x (deref 1)))
+(apply (f ((ref 2) (+ 4 4) (+ 0 1))))))
+
 
 ;; to make sure I remember what I am using
 (define (value result) (car result))
