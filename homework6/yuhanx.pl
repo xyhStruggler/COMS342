@@ -74,7 +74,8 @@ num_of_airlines([X|Xs], CalNum, Num, Airlines):-
     NewNum is CalNum + 1,
     append([Airline], Airlines, NewAirlines);
    member(Airline, Airlines)->
-     NewNum is CalNum
+     NewNum is CalNum,
+		 append([], Airlines, NewAirlines)
   ),
   num_of_airlines(Xs, NewNum, Num, NewAirlines).
 
@@ -100,16 +101,6 @@ valid_loop_free_path([X|Xs], Airports):-
   ),
   valid_loop_free_path(Xs, NewAirports).
 
-	valid_loop_free_path_helper(_,[]).
-	valid_loop_free_path_helper(Flight_leg,[Check|Visited]):-
-	    Flight_leg = [_,_,City1],
-	    Check = [City2,_,_],
-	    (
-			 City1 = City2->fail;
-			 City1 \= City2
-			),
-	    valid_loop_free_path_helper(Flight_leg, Visited).
-
 
 trip(Origin, Destination, Route):-
 	update_path(Origin, Destination, Path, []),
@@ -121,6 +112,7 @@ trip(Origin, Destination, Route):-
 
 update_path(Destination, Destination, [], _).
 update_path(Origin, Destination, [Flight_leg|Route], Visited):-
+	append(Visited, [Origin], NewVisited),
   % (
   %   not(is_list(Route))->Route = [0, 0, 0, []];
   %   is_list(Route)
@@ -143,9 +135,7 @@ update_path(Origin, Destination, [Flight_leg|Route], Visited):-
   %     append(Path, [Flight_leg], ListPath),
 	% 		list(ListPath, NewPath)
   % ),
-	% valid_loop_free_path([Flight_leg|Rest], []),
-	valid_loop_free_path_helper(Flight_leg,Visited),
-	append(Visited,[Flight_leg],NewVisited),
+	not(member(Next, Visited)),
   update_path(Next, Destination, Route, NewVisited).
 
 tripk(Origin, Destination, K, Route):-
