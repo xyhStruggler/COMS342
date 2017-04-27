@@ -4,7 +4,7 @@ airport(madrid, 75, 0.75).
 airport(barcelona, 40, 0.5).
 airport(valencia, 40, 0.33).
 airport(malaga, 50, 0.5).
-
+airport(aaa, 50, 0.5).
 %% you can add more airports for your testing
 
 %% london <-> newyork
@@ -35,4 +35,4 @@ flight(iberia, valencia, malaga, 80, 2).
 %% madrid <-> malaga
 flight(iberia, madrid, malaga, 50, 0.5).
 
-%% add more flight legs as well. 
+%% add more flight legs as well.
